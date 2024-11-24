@@ -30,6 +30,7 @@ async function fetchResults(e) {
 
 async function fetchPage(clubId, page) {
     const events = await fetchEvents(clubId, page)
+    eventPages.push(events)
     console.log(page, events)
     const list = await Promise.all(events.map(async (e) => await fetchResults(e)))
     const results = list.flat()
@@ -40,24 +41,35 @@ async function fetchPage(clubId, page) {
     })
 }
 
+function toCsv(array, excludeKeys = []) {
+    const keys = Object.keys(array[0]).filter(key => !excludeKeys.includes(key))
+    const csv = array.map((e) => keys.map(key => e[key]).join(','))
+    csv.unshift(keys.join(','))
+    return csv.join('\n')
+}
+
 async function throttledFetch(clubId, pages) {
     const asyncTimeout = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+    eventPages = []
     resultsByUser = {}
     for (let p = 1; p <= pages; p++) {
         await fetchPage(clubId, p)
         await asyncTimeout(1000)
     }
-    console.log('by user:', resultsByUser)
 
+    const events = eventPages.flat()
+    console.log('events:', events)
+    console.log('events.csv', toCsv(events, ['club', 'club_image_url', 'winner']))
+
+    console.log('results:', resultsByUser)
     const results = Object.values(resultsByUser)
         .flat()
         .map(({ base_time_seconds, increment, event_type, game_time_class, game_type, rank, rating, score, url, user, year }) =>
             [base_time_seconds, increment, event_type, game_time_class, game_type, rank, rating, score, '"' + url + '"', user, year ].join(','))
     results.unshift('base_time_seconds, increment, event_type, game_time_class, game_type, rank, rating, score, url, user, year')
-    const csv = results.join('\n')
-    console.log('results.csv', csv)
+    console.log('results.csv', results.join('\n'))
 }
 
-let resultsByUser
+let eventPages, resultsByUser
 // 15 pages should be enough for now, currently we stop getting results on page 11
 await throttledFetch(8677, 15)
