@@ -43,7 +43,11 @@ async function fetchPage(clubId, page) {
 
 function toCsv(array, excludeKeys = []) {
     const keys = Object.keys(array[0]).filter(key => !excludeKeys.includes(key))
-    const csv = array.map((e) => keys.map(key => e[key]).join(','))
+    const csv = array.map((e) => keys
+        .map(key => e[key])
+        .map(value => typeof value === 'string' ? value.replaceAll("\"", "\"\"") : value)
+        .map(value => typeof value === 'string' && value.indexOf(',') !== -1 ? `"$(value)"` : value)
+        .join(','))
     csv.unshift(keys.join(','))
     return csv.join('\n')
 }
